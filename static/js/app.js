@@ -14,6 +14,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const emptyState = document.getElementById('empty-state');
     const refreshBtn = document.getElementById('refresh-btn');
     const refreshSpinner = document.getElementById('refresh-spinner');
+    const exportCsvBtn = document.getElementById('export-csv-btn');
     const searchInput = document.getElementById('search-input');
     const filterButtons = document.querySelectorAll('.filter-btn');
     const lastUpdatedText = document.getElementById('last-updated-text');
@@ -43,6 +44,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Event Listeners
     refreshBtn.addEventListener('click', fetchReleaseNotes);
+    exportCsvBtn.addEventListener('click', exportToCsv);
     
     searchInput.addEventListener('input', (e) => {
         searchQuery = e.target.value.toLowerCase().trim();
@@ -256,11 +258,25 @@ document.addEventListener('DOMContentLoaded', () => {
                 ${update.contentHtml}
             </div>
             <div class="card-actions">
+                <button class="action-btn copy-btn">
+                    <i class="fa-regular fa-copy"></i> Copy Note
+                </button>
                 <button class="action-btn tweet-btn">
-                    <i class="fa-brands fa-x-twitter"></i> Tweet Update
+                    <i class="fa-brands fa-x-twitter"></i> Tweet Note
                 </button>
             </div>
         `;
+
+        // Wire up Copy event
+        card.querySelector('.copy-btn').addEventListener('click', () => {
+            const textToCopy = `BigQuery Release Note - ${update.type} (${update.date}):\n${update.contentText}\n\nRead more: ${update.link}`;
+            navigator.clipboard.writeText(textToCopy).then(() => {
+                showToast('Copied note to clipboard!', 'success');
+            }).catch(err => {
+                console.error('Failed to copy text: ', err);
+                showToast('Failed to copy to clipboard', 'error');
+            });
+        });
 
         // Wire up Tweet event
         card.querySelector('.tweet-btn').addEventListener('click', () => {
@@ -403,6 +419,63 @@ document.addEventListener('DOMContentLoaded', () => {
             toast.style.transform = 'translateY(10px)';
             setTimeout(() => toast.remove(), 300);
         }, 3500);
+    }
+
+    /**
+     * Export currently filtered release updates to a CSV file
+     */
+    function exportToCsv() {
+        const filtered = releaseUpdates.filter(update => {
+            const matchesFilter = currentFilter === 'all' || 
+                update.type.toLowerCase() === currentFilter;
+                
+            const matchesSearch = searchQuery === '' || 
+                update.type.toLowerCase().includes(searchQuery) ||
+                update.date.toLowerCase().includes(searchQuery) ||
+                update.contentText.toLowerCase().includes(searchQuery);
+                
+            return matchesFilter && matchesSearch;
+        });
+
+        if (filtered.length === 0) {
+            showToast('No updates to export!', 'error');
+            return;
+        }
+
+        // Generate CSV string
+        // Header: Date, Type, Description, Link
+        let csvContent = '\uFEFF'; // Add BOM for Excel UTF-8 support
+        csvContent += '"Date","Type","Description","Link"\r\n';
+
+        filtered.forEach(update => {
+            const date = update.date.replace(/"/g, '""');
+            const type = update.type.replace(/"/g, '""');
+            const desc = update.contentText.replace(/"/g, '""');
+            const link = update.link.replace(/"/g, '""');
+            
+            csvContent += `"${date}","${type}","${desc}","${link}"\r\n`;
+        });
+
+        // Trigger file download
+        try {
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            const formattedDate = new Date().toISOString().slice(0, 10);
+            
+            link.setAttribute('href', url);
+            link.setAttribute('download', `bigquery_releases_${formattedDate}.csv`);
+            link.style.visibility = 'hidden';
+            
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            showToast(`Exported ${filtered.length} updates to CSV!`, 'success');
+        } catch (error) {
+            console.error(error);
+            showToast('Failed to export CSV', 'error');
+        }
     }
 
     // Helper functions
