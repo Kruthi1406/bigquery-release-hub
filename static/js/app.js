@@ -15,6 +15,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const refreshBtn = document.getElementById('refresh-btn');
     const refreshSpinner = document.getElementById('refresh-spinner');
     const exportCsvBtn = document.getElementById('export-csv-btn');
+    const themeToggleBtn = document.getElementById('theme-toggle-btn');
+    const themeIcon = document.getElementById('theme-icon');
+    const themeText = document.getElementById('theme-text');
     const searchInput = document.getElementById('search-input');
     const filterButtons = document.querySelectorAll('.filter-btn');
     const lastUpdatedText = document.getElementById('last-updated-text');
@@ -39,12 +42,35 @@ document.addEventListener('DOMContentLoaded', () => {
     // Active tweet data being composed
     let activeTweetData = null;
 
+    // Theme switching logic
+    function setTheme(theme) {
+        document.documentElement.setAttribute('data-theme', theme);
+        localStorage.setItem('theme', theme);
+        
+        if (theme === 'light') {
+            themeIcon.className = 'fa-solid fa-moon';
+            themeText.textContent = 'Dark Mode';
+            themeToggleBtn.title = 'Switch to Dark Mode';
+        } else {
+            themeIcon.className = 'fa-solid fa-sun';
+            themeText.textContent = 'Light Mode';
+            themeToggleBtn.title = 'Switch to Light Mode';
+        }
+    }
+
     // Initialize the app
+    const savedTheme = localStorage.getItem('theme') || 'dark';
+    setTheme(savedTheme);
     fetchReleaseNotes();
 
     // Event Listeners
     refreshBtn.addEventListener('click', fetchReleaseNotes);
     exportCsvBtn.addEventListener('click', exportToCsv);
+    themeToggleBtn.addEventListener('click', () => {
+        const currentTheme = document.documentElement.getAttribute('data-theme') || 'dark';
+        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+        setTheme(newTheme);
+    });
     
     searchInput.addEventListener('input', (e) => {
         searchQuery = e.target.value.toLowerCase().trim();
