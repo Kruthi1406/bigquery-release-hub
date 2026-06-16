@@ -309,6 +309,11 @@ document.addEventListener('DOMContentLoaded', () => {
             openTweetComposer(update);
         });
 
+        // Highlight matching text if search query is active
+        if (searchQuery) {
+            highlightText(card.querySelector('.card-body'), searchQuery);
+        }
+
         return card;
     }
 
@@ -523,5 +528,49 @@ document.addEventListener('DOMContentLoaded', () => {
         if (t === 'deprecation') return 'deprecation';
         if (t === 'changed') return 'changed';
         return 'default';
+    }
+
+    /**
+     * Recursively traverses DOM text nodes and wraps query matches in <mark> tags
+     */
+    function highlightText(element, query) {
+        if (!query) return;
+        
+        function traverse(node) {
+            if (node.nodeType === Node.TEXT_NODE) {
+                const text = node.nodeValue;
+                const index = text.toLowerCase().indexOf(query.toLowerCase());
+                
+                if (index >= 0) {
+                    const parent = node.parentNode;
+                    
+                    // Skip highlighting inside existing marks, script, or style tags
+                    if (parent.tagName === 'MARK' || parent.tagName === 'SCRIPT' || parent.tagName === 'STYLE') {
+                        return;
+                    }
+                    
+                    const matchText = text.substring(index, index + query.length);
+                    const beforeText = text.substring(0, index);
+                    const afterText = text.substring(index + query.length);
+                    
+                    const beforeNode = document.createTextNode(beforeText);
+                    const markNode = document.createElement('mark');
+                    markNode.textContent = matchText;
+                    const afterNode = document.createTextNode(afterText);
+                    
+                    parent.replaceChild(afterNode, node);
+                    parent.insertBefore(markNode, afterNode);
+                    parent.insertBefore(beforeNode, markNode);
+                    
+                    // Traverse the rest of the text node for multiple matches
+                    traverse(afterNode);
+                }
+            } else if (node.nodeType === Node.ELEMENT_NODE && node.childNodes.length > 0) {
+                // Convert to array first as replacing children changes childNodes collection dynamically
+                Array.from(node.childNodes).forEach(child => traverse(child));
+            }
+        }
+        
+        traverse(element);
     }
 });
